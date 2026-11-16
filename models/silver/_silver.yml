@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  - name: slv_contract_events
+    description: CPQ events, one row per event_id. Redeliveries removed. Money in local currency major units.
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: contract_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('slv_contract_lines'), field: contract_id}
+              config: {where: "event_type = 'amendment'"}
+      - name: tcv_local
+        description: Total contract value for the whole term, local currency. Only on contract_created.
+  - name: slv_contract_lines
+    description: One row per contract line. Annual value is TCV annualised over the term.
+    columns:
+      - name: contract_id
+        data_tests: [unique, not_null]
+      - name: initial_annual_value_local
+        data_tests:
+          - in_range:
+              arguments:
+                min_value: 0.01
+      - name: renews_contract_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('slv_contract_lines')
+                field: contract_id
+  - name: slv_contract_line_versions
+    description: Seats and annual value per contract line per interval, after amendments.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [contract_id, valid_from]
+      - no_overlapping_intervals:
+          arguments:
+            partition_by: contract_id
+            from_col: valid_from
+            to_col: valid_to
+  - name: slv_fx_monthly
+    description: One FX rate per currency per month.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [currency, month_start]
+  - name: slv_accounts_scd2
+    description: Type 2 account history from CRM CDC.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [account_id, valid_from_ts]
+      - no_overlapping_intervals:
+          arguments:
+            partition_by: account_id
+            from_col: valid_from_date
+            to_col: valid_to_date
+      - exactly_one_current:
+          arguments:
+            key: account_id
+  - name: slv_practice_focus
+    description: Latest practice focus survey per account.
+    data_tests:
+      - weights_sum_to_one:
+          arguments:
+            key: account_id
+            weight: focus_pct / 100.0
+  - name: slv_usage_weekly
+    description: Weekly usage, latest delivery per account, product and week.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [account_id, product_id, week_start]

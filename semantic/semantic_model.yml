@@ -1,0 +1,265 @@
+# Governed semantic model over the gold star schema.
+# One definition per business measure. The query engine (semantic/engine.py), the Power BI model
+# (semantic/export_tmdl.py) and the agent all read this file, so a number means the same thing everywhere.
+version: 1
+name: Legal Research Commercial
+owner: Data & AI Engineering
+description: Recurring revenue, retention, renewals and product usage for the legal research subscription business.
+
+families:
+  snapshot:
+    fact: fct_arr_monthly
+    alias: f
+    date_column: f.month_end
+    description: >
+      Month end snapshot of ARR and seats. Semi-additive: pass as_of (one month end) or a period
+      grouped by month_end. Summing across months is refused.
+  cohort:
+    fact: fct_arr_monthly
+    alias: c
+    description: >
+      Compares firm ARR at the month end before period.start with the month end on or before period.end.
+      Firm attributes are taken as at the start (as at the end for new_logos).
+  usage:
+    fact: fct_usage_weekly
+    alias: u
+    date_column: u.week_start
+    description: Weekly product usage. A week belongs to the period that contains its Monday.
+  renewals:
+    fact: fct_renewals
+    alias: r
+    date_column: r.renewal_date
+    description: Contract lines reaching their renewal date in the period, with the outcome.
+
+dimensions:
+  segment: {column: d.segment, description: "Firm segment as it was at the measure's own date (as-was)."}
+  country: {column: d.country, description: Billing country.}
+  region: {column: d.region, description: "Americas, EMEA or APAC."}
+  account_owner: {column: d.account_owner, description: Account executive at the measure's date.}
+  product: {column: p.product_name, description: Product name., families: [snapshot, usage, renewals]}
+  product_line: {column: p.product_line, description: "Research, Analytics, Guidance, AI.", families: [snapshot, usage, renewals]}
+  practice_area:
+    column: pa.practice_area
+    description: Practice area. Firm values are allocated across practice areas by survey weight, so totals still add up.
+    families: [snapshot, usage]
+  month_end: {column: f.month_end, description: Snapshot month end., families: [snapshot]}
+  year_quarter: {column: dd.year_quarter, description: "Calendar quarter, e.g. 2025-Q3 (of the week's Monday or the renewal date).", families: [usage, renewals]}
+  calendar_year: {column: dd.calendar_year, description: Calendar year., families: [usage, renewals]}
+  week_start: {column: u.week_start, description: Monday of the usage week., families: [usage]}
+
+measures:
+  arr:
+    family: snapshot
+    label: ARR
+    sql: "sum(f.arr_usd * {w})"
+    format: usd
+    folder: Revenue
+    description: Annual recurring revenue in USD, contract value annualised, at each contract's start month FX rate.
+    dax: |
+      VAR _last = MAX ( fct_arr_monthly[month_end] )
+      RETURN CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), fct_arr_monthly[month_end] = _last )
+    # Power BI has no {w}: slicing by practice area goes through this weighted twin instead.
+    dax_allocated: |
+      SUMX (
+          bridge_firm_practice_area,
+          bridge_firm_practice_area[allocation_weight]
+              * CALCULATE ( [ARR], TREATAS ( { bridge_firm_practice_area[account_id] }, fct_arr_monthly[account_id] ) )
+      )
+  seats:
+    family: snapshot
+    label: Seats
+    sql: "sum(f.seats * {w})"
+    format: int
+    folder: Revenue
+    description: Licensed seats on the snapshot date.
+    dax: |
+      VAR _last = MAX ( fct_arr_monthly[month_end] )
+      RETURN CALCULATE ( SUM ( fct_arr_monthly[seats] ), fct_arr_monthly[month_end] = _last )
+  active_firms:
+    family: snapshot
+    label: Active Firms
+    sql: "count(distinct f.account_id)"
+    allocatable: false
+    format: int
+    folder: Customers
+    description: Customer firms with ARR above zero on the snapshot date.
+    dax: |
+      VAR _last = MAX ( fct_arr_monthly[month_end] )
+      RETURN CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last )
+  arr_per_firm:
+    family: snapshot
+    label: ARR per Firm
+    sql: "sum(f.arr_usd) / nullif(count(distinct f.account_id), 0)"
+    allocatable: false
+    format: usd
+    folder: Customers
+    description: ARR divided by active firms.
+    dax: DIVIDE ( [ARR], [Active Firms] )
+  ai_adoption_rate:
+    family: snapshot
+    label: AI Adoption Rate
+    sql: "count(distinct case when f.product_id = 'P06' then f.account_id end) * 1.0 / nullif(count(distinct f.account_id), 0)"
+    allocatable: false
+    product_filter: false
+    format: pct
+    folder: Customers
+    description: Share of active firms holding AI Assistant on the snapshot date.
+    dax: |
+      VAR _last = MAX ( fct_arr_monthly[month_end] )
+      VAR _firms = CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last, REMOVEFILTERS ( dim_product ) )
+      VAR _ai = CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last, REMOVEFILTERS ( dim_product ), dim_product[product_id] = "P06" )
+      RETURN DIVIDE ( _ai, _firms )
+
+  starting_arr:
+    family: cohort
+    label: Starting ARR
+    sql: "sum(c.start_arr)"
+    format: usd
+    folder: Retention
+    description: Firm ARR at the month end before the period starts.
+    dax: CALCULATE ( [ARR], PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) ) )
+  nrr:
+    family: cohort
+    label: NRR
+    sql: "sum(case when c.start_arr > 0 then c.end_arr else 0 end) / nullif(sum(c.start_arr), 0)"
+    format: pct
+    folder: Retention
+    description: Net revenue retention. End of period ARR from firms that were customers at the start, over their starting ARR. Includes expansion, excludes new logos.
+    dax: |
+      VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+      VAR _end = LASTDATE ( dim_date[date_day] )
+      VAR _firms = CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start )
+      VAR _startArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+      VAR _endArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _end, KEEPFILTERS ( _firms ) )
+      RETURN DIVIDE ( _endArr, _startArr )
+  grr:
+    family: cohort
+    label: GRR
+    sql: "sum(case when c.start_arr > 0 then least(c.end_arr, c.start_arr) else 0 end) / nullif(sum(c.start_arr), 0)"
+    format: pct
+    folder: Retention
+    description: Gross revenue retention. Like NRR but each firm is capped at its starting ARR, so expansion cannot hide churn and contraction.
+    dax: |
+      VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+      VAR _end = LASTDATE ( dim_date[date_day] )
+      VAR _startArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+      VAR _kept =
+          SUMX (
+              CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ),
+              VAR _s = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+              VAR _e = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _end )
+              RETURN MIN ( _s, _e )
+          )
+      RETURN DIVIDE ( _kept, _startArr )
+  churned_logos:
+    family: cohort
+    label: Churned Logos
+    sql: "count(case when c.start_arr > 0 and c.end_arr = 0 then 1 end)"
+    format: int
+    folder: Retention
+    description: Firms with ARR at the start and none at the end.
+    dax: |
+      VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+      VAR _end = LASTDATE ( dim_date[date_day] )
+      RETURN COUNTROWS ( EXCEPT ( CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ), CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _end ) ) )
+  logo_churn_rate:
+    family: cohort
+    label: Logo Churn Rate
+    sql: "count(case when c.start_arr > 0 and c.end_arr = 0 then 1 end) * 1.0 / nullif(count(case when c.start_arr > 0 then 1 end), 0)"
+    format: pct
+    folder: Retention
+    description: Churned logos over firms active at the start.
+    dax: DIVIDE ( [Churned Logos], CALCULATE ( [Active Firms], PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) ) ) )
+  new_logos:
+    family: cohort
+    label: New Logos
+    sql: "count(case when c.start_arr = 0 and c.end_arr > 0 then 1 end)"
+    format: int
+    folder: Retention
+    description: Firms with no ARR at the start and ARR at the end. Attributes as at the end.
+    dax: |
+      VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+      VAR _end = LASTDATE ( dim_date[date_day] )
+      RETURN COUNTROWS ( EXCEPT ( CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _end ), CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ) ) )
+
+  searches:
+    family: usage
+    label: Searches
+    sql: "sum(u.searches * {w})"
+    format: int
+    folder: Usage
+    description: Searches run in weeks starting in the period.
+    dax: SUM ( fct_usage_weekly[searches] )
+  documents_viewed:
+    family: usage
+    label: Documents Viewed
+    sql: "sum(u.documents_viewed * {w})"
+    format: int
+    folder: Usage
+    description: Documents opened.
+    dax: SUM ( fct_usage_weekly[documents_viewed] )
+  ai_prompts:
+    family: usage
+    label: AI Prompts
+    sql: "sum(u.ai_prompts * {w})"
+    format: int
+    folder: Usage
+    description: Prompts sent to AI Assistant.
+    dax: SUM ( fct_usage_weekly[ai_prompts] )
+  avg_weekly_active_users:
+    family: usage
+    label: Avg Weekly Active Users
+    sql: "sum(u.active_users * {w}) * 1.0 / nullif(count(distinct u.week_start), 0)"
+    format: dec1
+    folder: Usage
+    description: Active users summed within each week, averaged over the weeks in the period.
+    dax: DIVIDE ( SUM ( fct_usage_weekly[active_users] ), DISTINCTCOUNT ( fct_usage_weekly[week_start] ) )
+  seat_utilization:
+    family: usage
+    label: Seat Utilization
+    sql: "sum(u.active_users * {w}) * 1.0 / nullif(sum(u.licensed_seats * {w}), 0)"
+    format: pct
+    folder: Usage
+    description: Weekly active users over licensed seats, pooled over all firm-product-weeks in the period (not an average of ratios).
+    dax: DIVIDE ( SUM ( fct_usage_weekly[active_users] ), SUM ( fct_usage_weekly[licensed_seats] ) )
+  searches_per_active_user:
+    family: usage
+    label: Searches per Active User
+    sql: "sum(u.searches * {w}) * 1.0 / nullif(sum(u.active_users * {w}), 0)"
+    format: dec1
+    folder: Usage
+    description: Searches per weekly active user, pooled over the period.
+    dax: DIVIDE ( SUM ( fct_usage_weekly[searches] ), SUM ( fct_usage_weekly[active_users] ) )
+
+  renewals_due:
+    family: renewals
+    label: Renewals Due
+    sql: "count(*)"
+    format: int
+    folder: Renewals
+    description: Contract lines whose renewal date falls in the period.
+    dax: COUNTROWS ( fct_renewals )
+  renewal_rate:
+    family: renewals
+    label: Renewal Rate
+    sql: "count(case when r.outcome = 'renewed' then 1 end) * 1.0 / nullif(count(*), 0)"
+    format: pct
+    folder: Renewals
+    description: Share of contract lines due in the period that renewed (count based).
+    dax: DIVIDE ( CALCULATE ( COUNTROWS ( fct_renewals ), fct_renewals[outcome] = "renewed" ), COUNTROWS ( fct_renewals ) )
+  arr_up_for_renewal:
+    family: renewals
+    label: ARR Up for Renewal
+    sql: "sum(r.arr_expiring_usd)"
+    format: usd
+    folder: Renewals
+    description: ARR on the lines due in the period, at their last day.
+    dax: SUM ( fct_renewals[arr_expiring_usd] )
+  churned_arr_at_renewal:
+    family: renewals
+    label: Churned ARR at Renewal
+    sql: "sum(case when r.outcome = 'churned' then r.arr_expiring_usd else 0 end)"
+    format: usd
+    folder: Renewals
+    description: Expiring ARR on lines that did not renew.
+    dax: CALCULATE ( SUM ( fct_renewals[arr_expiring_usd] ), fct_renewals[outcome] = "churned" )

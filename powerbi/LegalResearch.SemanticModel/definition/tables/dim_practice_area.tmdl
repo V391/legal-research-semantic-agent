@@ -1,0 +1,24 @@
+/// Practice areas, plus PA00 Unspecified.
+table dim_practice_area
+	lineageTag: eb013f5b-e10a-5710-ad36-a45588698b3d
+
+	/// Practice area id.
+	column practice_area_id
+		dataType: string
+		lineageTag: 838a6cca-b9ad-5bf1-b57d-bc41975e55b6
+		summarizeBy: none
+		sourceColumn: practice_area_id
+
+	/// Practice area name.
+	column practice_area
+		dataType: string
+		lineageTag: 8be78abf-de4a-5eac-8aa3-938ea366a107
+		summarizeBy: none
+		sourceColumn: practice_area
+
+	partition dim_practice_area = entity
+		mode: directLake
+		source
+			entityName: dim_practice_area
+			schemaName: gold
+			expressionSource: DatabaseQuery

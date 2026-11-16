@@ -1,0 +1,91 @@
+/// One row per contract line that reached its renewal date, with the outcome.
+table fct_renewals
+	lineageTag: 9f580fab-55be-54d5-9aa7-80719f5e8041
+
+	/// Expiring contract line.
+	column contract_id
+		dataType: string
+		lineageTag: 884f6689-19fc-541d-a72b-73144cbe4f65
+		summarizeBy: none
+		sourceColumn: contract_id
+
+	/// Firm version in force on the renewal date.
+	column firm_sk
+		dataType: string
+		isHidden
+		lineageTag: af75dc37-60cf-5d09-b394-10f846981f3c
+		summarizeBy: none
+		sourceColumn: firm_sk
+
+	/// Firm durable key.
+	column account_id
+		dataType: string
+		isHidden
+		lineageTag: 06cf7445-610e-58da-8a08-c84c17388249
+		summarizeBy: none
+		sourceColumn: account_id
+
+	/// Product.
+	column product_id
+		dataType: string
+		lineageTag: 074d649b-c471-5a32-9b62-6299781e3283
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// End of the expiring term (exclusive)
+	column renewal_date
+		dataType: dateTime
+		lineageTag: 2cfbce7c-2ced-55a0-91cf-1f6b04672811
+		summarizeBy: none
+		sourceColumn: renewal_date
+
+	/// Length of the expiring term.
+	column term_months
+		dataType: int64
+		lineageTag: 21341603-2c72-56d8-b920-de759d5aa5a2
+		summarizeBy: none
+		sourceColumn: term_months
+
+	/// Seats at the end of the expiring term.
+	column seats_expiring
+		dataType: int64
+		lineageTag: b47efb2c-2a2b-5fc7-a88d-b2a1c4d99c38
+		summarizeBy: none
+		sourceColumn: seats_expiring
+
+	/// ARR of the expiring line on its last day.
+	column arr_expiring_usd
+		dataType: decimal
+		formatString: #,0.00
+		lineageTag: 96a14bc6-b0fc-55fa-b195-dbffdb452ef6
+		summarizeBy: none
+		sourceColumn: arr_expiring_usd
+
+	/// renewed or churned.
+	column outcome
+		dataType: string
+		lineageTag: faad9729-1ed9-50dd-9482-8b8c9fb76649
+		summarizeBy: none
+		sourceColumn: outcome
+
+	/// The renewal line. Null if churned.
+	column successor_contract_id
+		dataType: string
+		lineageTag: cfe3c7d1-74c6-5d78-a2b3-3c1b7e5fbb43
+		summarizeBy: none
+		sourceColumn: successor_contract_id
+
+	/// ARR of the renewal line at its start. 0 if churned.
+	column arr_renewed_usd
+		dataType: decimal
+		formatString: #,0.00
+		lineageTag: 5e990778-8ff7-5fc6-8859-3ab173d1b0a3
+		summarizeBy: none
+		sourceColumn: arr_renewed_usd
+
+	partition fct_renewals = entity
+		mode: directLake
+		source
+			entityName: fct_renewals
+			schemaName: gold
+			expressionSource: DatabaseQuery

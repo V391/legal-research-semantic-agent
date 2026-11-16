@@ -1,0 +1,7 @@
+/// Fabric Lakehouse SQL endpoint holding the gold Delta tables built by dbt
+expression DatabaseQuery =
+		let
+			database = Sql.Database("<workspace>.datawarehouse.fabric.microsoft.com", "<lakehouse-id>")
+		in
+			database
+	lineageTag: e4c4702a-69bc-5d1b-8c53-70c668e2c156

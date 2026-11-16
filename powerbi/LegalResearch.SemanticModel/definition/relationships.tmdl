@@ -1,0 +1,31 @@
+relationship 6201bb34-7b4d-5862-ba42-18f40f96113c
+	fromColumn: fct_arr_monthly.firm_sk
+	toColumn: dim_firm.firm_sk
+
+relationship 492fc9b3-0a8f-54b8-b857-f14dc8549a9e
+	fromColumn: fct_arr_monthly.product_id
+	toColumn: dim_product.product_id
+
+relationship e6df1902-43d3-5814-9521-a524cba97bc9
+	fromColumn: fct_arr_monthly.month_end_key
+	toColumn: dim_date.date_key
+
+relationship ae2c2b33-da8f-52f7-bfa1-75a33e53afca
+	fromColumn: fct_usage_weekly.firm_sk
+	toColumn: dim_firm.firm_sk
+
+relationship 2306b6c4-263c-5fdb-aa6e-aef0106a853b
+	fromColumn: fct_usage_weekly.product_id
+	toColumn: dim_product.product_id
+
+relationship d7d77aec-e3ac-5f9a-910f-6ab0c704ae2b
+	fromColumn: fct_renewals.firm_sk
+	toColumn: dim_firm.firm_sk
+
+relationship f90f7f49-185d-5bbe-ab1d-5315715704d6
+	fromColumn: fct_renewals.product_id
+	toColumn: dim_product.product_id
+
+relationship f3d27a3f-d105-5320-bb91-08f8dc059ddd
+	fromColumn: bridge_firm_practice_area.practice_area_id
+	toColumn: dim_practice_area.practice_area_id

@@ -1,0 +1,62 @@
+{
+ "caught": 8,
+ "total": 8,
+ "rows": [
+  {
+   "defect": "CPQ replays 5 contract bookings under new event ids",
+   "caught": true,
+   "failed": [
+    "unique_slv_contract_lines_contract_id"
+   ]
+  },
+  {
+   "defect": "CPQ sends a week of contract values in major units instead of minor units",
+   "caught": true,
+   "failed": [
+    "expression_true_fct_arr_monthly_arr_usd_seats_between_100_and_10000"
+   ]
+  },
+  {
+   "defect": "FX feed misses INR for one month",
+   "caught": true,
+   "failed": [
+    "assert_every_contract_has_fx"
+   ]
+  },
+  {
+   "defect": "CPQ amends a contract that was never booked",
+   "caught": true,
+   "failed": [
+    "relationships_slv_contract_events_contract_id__contract_id__ref_slv_contract_lines_"
+   ]
+  },
+  {
+   "defect": "CRM starts sending a new account type (partner sandbox)",
+   "caught": true,
+   "failed": [
+    "source_accepted_values_bronze_crm_account_changes_account_type__customer__internal"
+   ]
+  },
+  {
+   "defect": "Practice focus survey saved with percentages not adding to 100",
+   "caught": true,
+   "failed": [
+    "weights_sum_to_one_slv_practice_focus_account_id__focus_pct_100_0"
+   ]
+  },
+  {
+   "defect": "Usage restatement doubles a week's counts",
+   "caught": true,
+   "failed": [
+    "expression_true_fct_usage_weekly_active_users_licensed_seats"
+   ]
+  },
+  {
+   "defect": "CPQ books a contract that ends before it starts",
+   "caught": true,
+   "failed": [
+    "no_overlapping_intervals_slv_contract_line_versions_valid_from__contract_id__valid_to"
+   ]
+  }
+ ]
+}

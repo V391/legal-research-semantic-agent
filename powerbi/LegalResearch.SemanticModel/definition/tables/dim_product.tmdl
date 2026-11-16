@@ -1,0 +1,46 @@
+/// Products with their product line (hierarchy product_line > product).
+table dim_product
+	lineageTag: 1c55fc4a-9cf0-5e4e-9cd7-dbc0c4e38e1c
+
+	/// Product id.
+	column product_id
+		dataType: string
+		lineageTag: 2a03a76d-05f5-523b-8784-a527f67a42a4
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// Product name.
+	column product_name
+		dataType: string
+		lineageTag: 9c95bd12-2bec-5072-8962-7bf4ac53269b
+		summarizeBy: none
+		sourceColumn: product_name
+
+	/// Research, Analytics, Guidance or AI.
+	column product_line
+		dataType: string
+		lineageTag: 507f99e2-4db9-5ccb-b0c5-797963a68359
+		summarizeBy: none
+		sourceColumn: product_line
+
+	/// True for the research subscriptions every customer holds one of.
+	column is_core
+		dataType: boolean
+		lineageTag: a345443c-e588-5b34-be7d-484cd01430d5
+		summarizeBy: none
+		sourceColumn: is_core
+
+	/// List price per seat per year in USD before discounts.
+	column list_price_usd
+		dataType: decimal
+		formatString: #,0.00
+		lineageTag: 7e34fb1c-8a9d-5ef3-8a59-4d5d2f5b0fc4
+		summarizeBy: none
+		sourceColumn: list_price_usd
+
+	partition dim_product = entity
+		mode: directLake
+		source
+			entityName: dim_product
+			schemaName: gold
+			expressionSource: DatabaseQuery

@@ -1,0 +1,32 @@
+/// Many to many bridge between firms and practice areas. Allocation weights sum to 1 per firm. Any measure sliced by practice area must be multiplied by allocation_weight, or it double counts.
+table bridge_firm_practice_area
+	lineageTag: 42b8d236-9512-5e78-8e96-2b1808d6e5e9
+
+	/// Firm (durable key).
+	column account_id
+		dataType: string
+		lineageTag: 25c53e37-ea36-563c-872a-638fab7b3c91
+		summarizeBy: none
+		sourceColumn: account_id
+
+	/// Practice area.
+	column practice_area_id
+		dataType: string
+		lineageTag: 80fb4c80-dfeb-56a3-a274-c4afac071700
+		summarizeBy: none
+		sourceColumn: practice_area_id
+
+	/// Share of the firm attributed to the practice area.
+	column allocation_weight
+		dataType: decimal
+		formatString: #,0.00
+		lineageTag: 989493a1-4784-51c2-b114-0c0f5ac0376a
+		summarizeBy: none
+		sourceColumn: allocation_weight
+
+	partition bridge_firm_practice_area = entity
+		mode: directLake
+		source
+			entityName: bridge_firm_practice_area
+			schemaName: gold
+			expressionSource: DatabaseQuery

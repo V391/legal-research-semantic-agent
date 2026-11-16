@@ -1,0 +1,11 @@
+.venv/
+data/
+warehouse/
+target/
+target_defect/
+logs/
+dbt_packages/
+__pycache__/
+.user.yml
+eval_live.log
+run_all.log

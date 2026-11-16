@@ -1,0 +1,74 @@
+/// Calendar, one row per day. Weeks start Monday and belong to the month of their Monday.
+table dim_date
+	lineageTag: 8d30f182-8a76-5536-a321-9e952f638a92
+
+	/// yyyymmdd surrogate key.
+	column date_key
+		dataType: int64
+		isHidden
+		lineageTag: 5e365421-502f-5b52-8d26-6d110405c17a
+		summarizeBy: none
+		sourceColumn: date_key
+
+	/// Calendar day.
+	column date_day
+		dataType: dateTime
+		lineageTag: 99160834-605b-54dd-b0c4-649afbb2fad1
+		summarizeBy: none
+		sourceColumn: date_day
+
+	/// Monday of the ISO week containing the day.
+	column week_start
+		dataType: dateTime
+		lineageTag: ef913d2e-cdf8-5de1-821a-ec1b86fb31f8
+		summarizeBy: none
+		sourceColumn: week_start
+
+	/// First day of the month.
+	column month_start
+		dataType: dateTime
+		lineageTag: 184bbae8-1570-52cf-82d6-0d436a231e06
+		summarizeBy: none
+		sourceColumn: month_start
+
+	/// Last day of the month. Snapshot facts are keyed on it.
+	column month_end
+		dataType: dateTime
+		lineageTag: 39dbea53-1ab0-524e-942e-4d1004933af9
+		summarizeBy: none
+		sourceColumn: month_end
+
+	/// True on the last day of a month.
+	column is_month_end
+		dataType: boolean
+		lineageTag: b9ddd12b-ef5f-552f-b4bc-ae47b3f9a771
+		summarizeBy: none
+		sourceColumn: is_month_end
+
+	/// Calendar quarter label, e.g. 2025-Q3.
+	column year_quarter
+		dataType: string
+		lineageTag: cdf56bfc-ec3a-5c67-8723-eed5d545127c
+		summarizeBy: none
+		sourceColumn: year_quarter
+
+	/// Quarter number 1 to 4.
+	column quarter_of_year
+		dataType: int64
+		lineageTag: 7026b36b-b27c-5660-ad7e-dafd20369b48
+		summarizeBy: none
+		sourceColumn: quarter_of_year
+
+	/// Calendar year.
+	column calendar_year
+		dataType: int64
+		lineageTag: b9fc38b8-0944-5f52-9d57-b8e32e94e853
+		summarizeBy: none
+		sourceColumn: calendar_year
+
+	partition dim_date = entity
+		mode: directLake
+		source
+			entityName: dim_date
+			schemaName: gold
+			expressionSource: DatabaseQuery

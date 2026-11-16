@@ -1,0 +1,32 @@
+name: legal_research
+version: "1.0.0"
+config-version: 2
+profile: legal_research
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+
+vars:
+  horizon_start: "2024-01-01"
+  horizon_end: "2025-12-31"
+  feature_lead_days: 90          # renewal risk features are frozen this many days before the renewal date
+  feature_window_weeks: 12
+
+models:
+  legal_research:
+    silver:
+      +materialized: table
+      +schema: silver
+    gold:
+      +materialized: table
+      +schema: gold
+
+seeds:
+  legal_research:
+    +schema: reference
+
+data_tests:
+  legal_research:
+    +severity: error

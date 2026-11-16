@@ -1,0 +1,123 @@
+# Golden questions, phrased the way a commercial leader would ask them.
+# `spec` is used twice, by independent code: the semantic engine runs it over the dbt warehouse (reference run),
+# and eval/truth.py evaluates it in pandas over the simulator's answer key. Agents never see the spec.
+- id: q01
+  question: What was our total ARR at the end of December 2025?
+  spec: {measures: [arr], as_of: "2025-12-31"}
+- id: q02
+  question: What was total ARR at the end of 2024?
+  spec: {measures: [arr], as_of: "2024-12-31"}
+- id: q03
+  question: Break down ARR by product line at the end of December 2025.
+  spec: {measures: [arr], group_by: [product_line], as_of: "2025-12-31"}
+- id: q04
+  question: What was ARR by customer segment at the end of December 2024?
+  spec: {measures: [arr], group_by: [segment], as_of: "2024-12-31"}
+- id: q05
+  question: Show ARR by sales region at the end of June 2025.
+  spec: {measures: [arr], group_by: [region], as_of: "2025-06-30"}
+- id: q06
+  question: How is ARR split across practice areas at the end of December 2025?
+  spec: {measures: [arr], group_by: [practice_area], as_of: "2025-12-31"}
+- id: q07
+  question: How much ARR did the Tax practice area represent at the end of December 2024?
+  spec: {measures: [arr], filters: {practice_area: [Tax]}, as_of: "2024-12-31"}
+- id: q08
+  question: How many active customer firms did we have at the end of December 2025?
+  spec: {measures: [active_firms], as_of: "2025-12-31"}
+- id: q09
+  question: How many firms were paying for AI Assistant at the end of December 2025?
+  spec: {measures: [active_firms], filters: {product: [AI Assistant]}, as_of: "2025-12-31"}
+- id: q10
+  question: What share of our active customer firms had AI Assistant at the end of December 2025?
+  spec: {measures: [ai_adoption_rate], as_of: "2025-12-31"}
+- id: q11
+  question: What was AI Assistant ARR at each month end in Q4 2025?
+  spec: {measures: [arr], group_by: [month_end], filters: {product: [AI Assistant]}, period: {start: "2025-10-01", end: "2025-12-31"}}
+- id: q12
+  question: How many licensed seats did we have in total at the end of December 2025?
+  spec: {measures: [seats], as_of: "2025-12-31"}
+- id: q13
+  question: How many Litigation Analytics seats were licensed in India at the end of December 2025?
+  spec: {measures: [seats], filters: {product: [Litigation Analytics], country: [India]}, as_of: "2025-12-31"}
+- id: q14
+  question: What was average ARR per active firm at the end of December 2025?
+  spec: {measures: [arr_per_firm], as_of: "2025-12-31"}
+- id: q15
+  question: How much ARR came from Global Law Firm segment customers in the United States at the end of December 2025?
+  spec: {measures: [arr], filters: {segment: [Global Law Firm], country: [United States]}, as_of: "2025-12-31"}
+- id: q16
+  question: How many Corporate Legal firms were active customers at the end of September 2025?
+  spec: {measures: [active_firms], filters: {segment: [Corporate Legal]}, as_of: "2025-09-30"}
+- id: q17
+  question: What was Research Plus ARR by country at the end of December 2025?
+  spec: {measures: [arr], group_by: [country], filters: {product: [Research Plus]}, as_of: "2025-12-31"}
+- id: q18
+  question: How much ARR did Litigation practice work represent in the United Kingdom at the end of December 2025?
+  spec: {measures: [arr], filters: {practice_area: [Litigation], country: [United Kingdom]}, as_of: "2025-12-31"}
+- id: q19
+  question: What was our net revenue retention for calendar year 2025?
+  spec: {measures: [nrr], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q20
+  question: What was gross revenue retention for 2025?
+  spec: {measures: [grr], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q21
+  question: How many customer firms did we lose in 2025?
+  spec: {measures: [churned_logos], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q22
+  question: What was the logo churn rate for 2025?
+  spec: {measures: [logo_churn_rate], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q23
+  question: How many new customer firms did we win in 2025?
+  spec: {measures: [new_logos], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q24
+  question: What was 2025 net revenue retention by region?
+  spec: {measures: [nrr], group_by: [region], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q25
+  question: What was 2025 gross revenue retention for Mid-size Law firms?
+  spec: {measures: [grr], filters: {segment: [Mid-size Law]}, period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q26
+  question: Show 2025 net revenue retention by customer segment.
+  spec: {measures: [nrr], group_by: [segment], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q27
+  question: What was net revenue retention over the first half of 2025?
+  spec: {measures: [nrr], period: {start: "2025-01-01", end: "2025-06-30"}}
+- id: q28
+  question: How many searches did customers run in 2025?
+  spec: {measures: [searches], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q29
+  question: What was the average number of weekly active users on AI Assistant in Q4 2025?
+  spec: {measures: [avg_weekly_active_users], filters: {product: [AI Assistant]}, period: {start: "2025-10-01", end: "2025-12-31"}}
+- id: q30
+  question: What was overall seat utilization in Q4 2025?
+  spec: {measures: [seat_utilization], period: {start: "2025-10-01", end: "2025-12-31"}}
+- id: q31
+  question: What was seat utilization by customer segment in Q3 2025?
+  spec: {measures: [seat_utilization], group_by: [segment], period: {start: "2025-07-01", end: "2025-09-30"}}
+- id: q32
+  question: How many searches per active user did Research Core customers run in 2025?
+  spec: {measures: [searches_per_active_user], filters: {product: [Research Core]}, period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q33
+  question: How many AI Assistant prompts were sent in each quarter of 2025?
+  spec: {measures: [ai_prompts], group_by: [year_quarter], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q34
+  question: How many Practical Guidance documents did UK customers view in 2025?
+  spec: {measures: [documents_viewed], filters: {product: [Practical Guidance], country: [United Kingdom]}, period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q35
+  question: How many contract renewals came due in 2025?
+  spec: {measures: [renewals_due], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q36
+  question: What was our renewal rate in 2025?
+  spec: {measures: [renewal_rate], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q37
+  question: What was the 2025 renewal rate by product line?
+  spec: {measures: [renewal_rate], group_by: [product_line], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q38
+  question: How much ARR did we lose at renewal in 2025?
+  spec: {measures: [churned_arr_at_renewal], period: {start: "2025-01-01", end: "2025-12-31"}}
+- id: q39
+  question: How much ARR was up for renewal in Q1 2025?
+  spec: {measures: [arr_up_for_renewal], period: {start: "2025-01-01", end: "2025-03-31"}}
+- id: q40
+  question: How much practice area ARR did Intellectual Property account for in India at the end of June 2025?
+  spec: {measures: [arr], filters: {practice_area: [Intellectual Property], country: [India]}, as_of: "2025-06-30"}

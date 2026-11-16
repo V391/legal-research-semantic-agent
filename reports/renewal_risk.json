@@ -1,0 +1,22 @@
+{
+ "train_renewals": 547,
+ "test_renewals": 273,
+ "test_churn_rate": 0.15384615384615385,
+ "cv_auc_train": {
+  "logistic regression, usage features": 0.6737616185097781,
+  "logistic regression": 0.6744109803408526,
+  "gradient boosting": 0.5928953899430459
+ },
+ "chosen": "logistic regression",
+ "test_auc_model": 0.588332302618017,
+ "test_auc_every_candidate": {
+  "logistic regression, usage features": 0.5994640280354566,
+  "logistic regression": 0.588332302618017,
+  "gradient boosting": 0.5652442795299938
+ },
+ "test_auc_rule_low_utilization": 0.7084106369820655,
+ "churned_arr_in_top20pct_model": 0.5283156833010589,
+ "churned_arr_in_top20pct_rule": 0.5523420083533453,
+ "test_churned_arr": 1857114.64,
+ "ship": "rule"
+}

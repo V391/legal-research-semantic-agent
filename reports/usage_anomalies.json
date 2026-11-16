@@ -1,0 +1,34 @@
+{
+ "series": 1146,
+ "weeks_scored_2025": 47206,
+ "baseline_static_threshold": {
+  "params": {
+   "hi": 4,
+   "lo": 0.1
+  },
+  "test_2025": {
+   "flagged": 3726,
+   "true_positives": 42,
+   "anomalies": 47,
+   "precision": 0.011,
+   "recall": 0.894,
+   "f1": 0.022
+  }
+ },
+ "detector_seasonal_robust_z": {
+  "params": {
+   "z_up": 3,
+   "ratio_up": 4,
+   "ratio_down": 8,
+   "min_users": 8
+  },
+  "test_2025": {
+   "flagged": 34,
+   "true_positives": 34,
+   "anomalies": 47,
+   "precision": 1.0,
+   "recall": 0.723,
+   "f1": 0.84
+  }
+ }
+}

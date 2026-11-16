@@ -1,0 +1,81 @@
+/// Customer firm, Type 2. Facts carry the firm_sk in force at their own date, so slicing by segment is as-was by default.
+table dim_firm
+	lineageTag: c9cee8c3-a63a-50bc-9c91-2655edfc3220
+
+	/// Surrogate key of the firm version.
+	column firm_sk
+		dataType: string
+		isHidden
+		lineageTag: e6de2e54-4596-58ab-a3a1-fb6b4dd9c939
+		summarizeBy: none
+		sourceColumn: firm_sk
+
+	/// Durable CRM account id. Same across versions.
+	column account_id
+		dataType: string
+		lineageTag: eb9f4b0e-c1cb-58b5-bd6a-5552a8dbc685
+		summarizeBy: none
+		sourceColumn: account_id
+
+	/// Firm name.
+	column account_name
+		dataType: string
+		lineageTag: 1cbe33a1-04b4-5cef-9da0-df4bd624222e
+		summarizeBy: none
+		sourceColumn: account_name
+
+	/// Commercial segment while this version was valid. Firms move up segments as they grow.
+	column segment
+		dataType: string
+		lineageTag: f4b99bac-7f6a-5457-8665-5266d75cf5e5
+		summarizeBy: none
+		sourceColumn: segment
+
+	/// Billing country.
+	column country
+		dataType: string
+		lineageTag: d5a10b53-8f63-5fe6-890d-192e4abc3657
+		summarizeBy: none
+		sourceColumn: country
+
+	/// Sales region derived from country.
+	column region
+		dataType: string
+		lineageTag: 1adafa8a-87fa-5d87-8deb-b8533db98275
+		summarizeBy: none
+		sourceColumn: region
+
+	/// Account executive while this version was valid.
+	column account_owner
+		dataType: string
+		lineageTag: e0bbc9a5-679f-5a52-92c7-f5367a743750
+		summarizeBy: none
+		sourceColumn: account_owner
+
+	/// Version start
+	column valid_from_date
+		dataType: dateTime
+		lineageTag: d9952466-508f-5345-949d-31281521e01f
+		summarizeBy: none
+		sourceColumn: valid_from_date
+
+	/// Version end, exclusive. 9999-12-31 on the current version.
+	column valid_to_date
+		dataType: dateTime
+		lineageTag: 783c0af7-e395-5921-89bb-d4d5ddbebea1
+		summarizeBy: none
+		sourceColumn: valid_to_date
+
+	/// True on the latest version of each firm.
+	column is_current
+		dataType: boolean
+		lineageTag: 68a429d6-c74a-5554-93e4-db9dcc876587
+		summarizeBy: none
+		sourceColumn: is_current
+
+	partition dim_firm = entity
+		mode: directLake
+		source
+			entityName: dim_firm
+			schemaName: gold
+			expressionSource: DatabaseQuery

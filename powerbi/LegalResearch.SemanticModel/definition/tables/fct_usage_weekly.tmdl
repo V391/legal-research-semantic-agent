@@ -1,0 +1,75 @@
+/// Weekly product usage, one row per firm x product x week. Additive except active_users (sum within a week only).
+table fct_usage_weekly
+	lineageTag: 4a40d838-a9ae-585d-8a7f-32cf32f73bcc
+
+	/// Monday of the usage week.
+	column week_start
+		dataType: dateTime
+		lineageTag: cac1ea96-1fab-5cb2-a914-4d43d2b44aef
+		summarizeBy: none
+		sourceColumn: week_start
+
+	/// Firm version in force at week start.
+	column firm_sk
+		dataType: string
+		isHidden
+		lineageTag: 57a21ff0-81a1-5b5a-9527-2b7fe39eb192
+		summarizeBy: none
+		sourceColumn: firm_sk
+
+	/// Firm durable key.
+	column account_id
+		dataType: string
+		isHidden
+		lineageTag: 393d84ad-b9c5-5510-9f3f-8f7e23d0fac7
+		summarizeBy: none
+		sourceColumn: account_id
+
+	/// Product.
+	column product_id
+		dataType: string
+		lineageTag: 8437dc52-47a9-5124-a171-c337b2aa13a0
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// Seats licensed that week.
+	column licensed_seats
+		dataType: int64
+		lineageTag: 6a0f6469-1481-5e2c-a121-9c14c90c88d5
+		summarizeBy: none
+		sourceColumn: licensed_seats
+
+	/// Distinct users active that week.
+	column active_users
+		dataType: int64
+		lineageTag: c75ca3ff-d34c-563d-a067-f318aa9fc68a
+		summarizeBy: none
+		sourceColumn: active_users
+
+	/// Searches run.
+	column searches
+		dataType: int64
+		lineageTag: c4c8f23c-1059-5b06-b40a-1577507501b1
+		summarizeBy: none
+		sourceColumn: searches
+
+	/// Documents opened.
+	column documents_viewed
+		dataType: int64
+		lineageTag: d14fda6d-3ce5-5875-837f-ba538cc2b4a0
+		summarizeBy: none
+		sourceColumn: documents_viewed
+
+	/// Prompts sent to AI Assistant.
+	column ai_prompts
+		dataType: int64
+		lineageTag: b4c871b4-d489-5673-a43e-3c4d49b31c72
+		summarizeBy: none
+		sourceColumn: ai_prompts
+
+	partition fct_usage_weekly = entity
+		mode: directLake
+		source
+			entityName: fct_usage_weekly
+			schemaName: gold
+			expressionSource: DatabaseQuery

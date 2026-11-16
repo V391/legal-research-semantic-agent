@@ -1,0 +1,242 @@
+/// Periodic snapshot of recurring revenue, one row per firm x product x month end. ARR is semi-additive: sum across firms and products, never across months (take one month end).
+table fct_arr_monthly
+	lineageTag: a299f819-2211-5f2d-9a9a-4b6a05ab9e3a
+
+	/// yyyymmdd of the month end (joins dim_date.date_key).
+	column month_end_key
+		dataType: int64
+		isHidden
+		lineageTag: 9c1d6334-adfc-53f6-a616-f0318019dee9
+		summarizeBy: none
+		sourceColumn: month_end_key
+
+	/// Snapshot date.
+	column month_end
+		dataType: dateTime
+		lineageTag: 5a4c7975-1764-5a8b-b234-8491a6e8f943
+		summarizeBy: none
+		sourceColumn: month_end
+
+	/// Firm version in force on the snapshot date.
+	column firm_sk
+		dataType: string
+		isHidden
+		lineageTag: df74afd2-2dd7-5f08-be13-c4b0841b2544
+		summarizeBy: none
+		sourceColumn: firm_sk
+
+	/// Firm durable key.
+	column account_id
+		dataType: string
+		isHidden
+		lineageTag: 975087c1-7966-575f-b506-8cd5d3c4360c
+		summarizeBy: none
+		sourceColumn: account_id
+
+	/// Product.
+	column product_id
+		dataType: string
+		lineageTag: 70bd06d8-84a1-5e86-8112-ee02d8fe4af1
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// Licensed seats on the snapshot date.
+	column seats
+		dataType: int64
+		lineageTag: 5c9e74e0-7802-5e6f-99ca-dcf633ecd82c
+		summarizeBy: none
+		sourceColumn: seats
+
+	/// Annual recurring revenue in USD at the contract start month FX rate.
+	column arr_usd
+		dataType: decimal
+		formatString: #,0.00
+		lineageTag: f764e2a7-2c00-51f4-93c1-c381137c0d1e
+		summarizeBy: none
+		sourceColumn: arr_usd
+
+	/// Annual recurring revenue in USD, contract value annualised, at each contract's start month FX rate.
+	measure 'ARR' = ```
+			VAR _last = MAX ( fct_arr_monthly[month_end] )
+			RETURN CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), fct_arr_monthly[month_end] = _last )
+			```
+		formatString: \$#,0
+		displayFolder: Revenue
+		lineageTag: e7f6e7c3-6fb9-5f50-b9c0-785adc743a56
+
+	/// Annual recurring revenue in USD, contract value annualised, at each contract's start month FX rate. Weighted by the practice area bridge; use when slicing by practice area.
+	measure 'ARR (Practice Area Allocated)' = ```
+			SUMX (
+			    bridge_firm_practice_area,
+			    bridge_firm_practice_area[allocation_weight]
+			        * CALCULATE ( [ARR], TREATAS ( { bridge_firm_practice_area[account_id] }, fct_arr_monthly[account_id] ) )
+			)
+			```
+		formatString: \$#,0
+		displayFolder: Revenue
+		lineageTag: ea2be577-9ada-5f4f-9dcc-bffa716cbcbc
+
+	/// Licensed seats on the snapshot date.
+	measure 'Seats' = ```
+			VAR _last = MAX ( fct_arr_monthly[month_end] )
+			RETURN CALCULATE ( SUM ( fct_arr_monthly[seats] ), fct_arr_monthly[month_end] = _last )
+			```
+		formatString: #,0
+		displayFolder: Revenue
+		lineageTag: 1ba4a081-ad9d-54e1-b6dd-18da957b0d2d
+
+	/// Customer firms with ARR above zero on the snapshot date.
+	measure 'Active Firms' = ```
+			VAR _last = MAX ( fct_arr_monthly[month_end] )
+			RETURN CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last )
+			```
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: fdf4c110-1fe8-51d2-bfaa-445a9befaa67
+
+	/// ARR divided by active firms.
+	measure 'ARR per Firm' = DIVIDE ( [ARR], [Active Firms] )
+		formatString: \$#,0
+		displayFolder: Customers
+		lineageTag: bf6e6288-872e-5c6e-b08f-76986fa3dc44
+
+	/// Share of active firms holding AI Assistant on the snapshot date.
+	measure 'AI Adoption Rate' = ```
+			VAR _last = MAX ( fct_arr_monthly[month_end] )
+			VAR _firms = CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last, REMOVEFILTERS ( dim_product ) )
+			VAR _ai = CALCULATE ( DISTINCTCOUNT ( fct_arr_monthly[account_id] ), fct_arr_monthly[month_end] = _last, REMOVEFILTERS ( dim_product ), dim_product[product_id] = "P06" )
+			RETURN DIVIDE ( _ai, _firms )
+			```
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: d25549bf-1754-55d4-9295-dce611beadf0
+
+	/// Firm ARR at the month end before the period starts.
+	measure 'Starting ARR' = CALCULATE ( [ARR], PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) ) )
+		formatString: \$#,0
+		displayFolder: Retention
+		lineageTag: a946e5f3-5e15-591b-a64f-793478753a1f
+
+	/// Net revenue retention. End of period ARR from firms that were customers at the start, over their starting ARR. Includes expansion, excludes new logos.
+	measure 'NRR' = ```
+			VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+			VAR _end = LASTDATE ( dim_date[date_day] )
+			VAR _firms = CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start )
+			VAR _startArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+			VAR _endArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _end, KEEPFILTERS ( _firms ) )
+			RETURN DIVIDE ( _endArr, _startArr )
+			```
+		formatString: 0.0%
+		displayFolder: Retention
+		lineageTag: 24f38876-712e-5dab-bdba-c4a5c7ec4060
+
+	/// Gross revenue retention. Like NRR but each firm is capped at its starting ARR, so expansion cannot hide churn and contraction.
+	measure 'GRR' = ```
+			VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+			VAR _end = LASTDATE ( dim_date[date_day] )
+			VAR _startArr = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+			VAR _kept =
+			    SUMX (
+			        CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ),
+			        VAR _s = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _start )
+			        VAR _e = CALCULATE ( SUM ( fct_arr_monthly[arr_usd] ), _end )
+			        RETURN MIN ( _s, _e )
+			    )
+			RETURN DIVIDE ( _kept, _startArr )
+			```
+		formatString: 0.0%
+		displayFolder: Retention
+		lineageTag: b1024a2c-9928-56f5-8e21-c6548a9ed8d3
+
+	/// Firms with ARR at the start and none at the end.
+	measure 'Churned Logos' = ```
+			VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+			VAR _end = LASTDATE ( dim_date[date_day] )
+			RETURN COUNTROWS ( EXCEPT ( CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ), CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _end ) ) )
+			```
+		formatString: #,0
+		displayFolder: Retention
+		lineageTag: 8ce95ad5-e979-561d-adc4-8d9249271491
+
+	/// Churned logos over firms active at the start.
+	measure 'Logo Churn Rate' = DIVIDE ( [Churned Logos], CALCULATE ( [Active Firms], PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) ) ) )
+		formatString: 0.0%
+		displayFolder: Retention
+		lineageTag: 70933bcd-0144-5162-beee-81d0724e7831
+
+	/// Firms with no ARR at the start and ARR at the end. Attributes as at the end.
+	measure 'New Logos' = ```
+			VAR _start = PREVIOUSDAY ( FIRSTDATE ( dim_date[date_day] ) )
+			VAR _end = LASTDATE ( dim_date[date_day] )
+			RETURN COUNTROWS ( EXCEPT ( CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _end ), CALCULATETABLE ( VALUES ( fct_arr_monthly[account_id] ), _start ) ) )
+			```
+		formatString: #,0
+		displayFolder: Retention
+		lineageTag: b689f9f1-b9d8-5de2-8854-3f7427d7d0a0
+
+	/// Searches run in weeks starting in the period.
+	measure 'Searches' = SUM ( fct_usage_weekly[searches] )
+		formatString: #,0
+		displayFolder: Usage
+		lineageTag: f37b0256-b1e1-5017-9c92-2524027d7c26
+
+	/// Documents opened.
+	measure 'Documents Viewed' = SUM ( fct_usage_weekly[documents_viewed] )
+		formatString: #,0
+		displayFolder: Usage
+		lineageTag: 2d5b9d43-ae1c-5a1a-b6e0-8191142981fb
+
+	/// Prompts sent to AI Assistant.
+	measure 'AI Prompts' = SUM ( fct_usage_weekly[ai_prompts] )
+		formatString: #,0
+		displayFolder: Usage
+		lineageTag: 47d61eb2-04c1-5bb8-bfc2-bc0228642f2a
+
+	/// Active users summed within each week, averaged over the weeks in the period.
+	measure 'Avg Weekly Active Users' = DIVIDE ( SUM ( fct_usage_weekly[active_users] ), DISTINCTCOUNT ( fct_usage_weekly[week_start] ) )
+		formatString: #,0.0
+		displayFolder: Usage
+		lineageTag: c4215594-2bdc-563d-84df-61310267c805
+
+	/// Weekly active users over licensed seats, pooled over all firm-product-weeks in the period (not an average of ratios).
+	measure 'Seat Utilization' = DIVIDE ( SUM ( fct_usage_weekly[active_users] ), SUM ( fct_usage_weekly[licensed_seats] ) )
+		formatString: 0.0%
+		displayFolder: Usage
+		lineageTag: 1ad2f6f2-6211-5d98-a21e-55627f287732
+
+	/// Searches per weekly active user, pooled over the period.
+	measure 'Searches per Active User' = DIVIDE ( SUM ( fct_usage_weekly[searches] ), SUM ( fct_usage_weekly[active_users] ) )
+		formatString: #,0.0
+		displayFolder: Usage
+		lineageTag: 9fe2122b-a342-5264-9b9e-8df34bbe8c83
+
+	/// Contract lines whose renewal date falls in the period.
+	measure 'Renewals Due' = COUNTROWS ( fct_renewals )
+		formatString: #,0
+		displayFolder: Renewals
+		lineageTag: 3ac59868-1a99-57e5-a87e-90f15de2fa9e
+
+	/// Share of contract lines due in the period that renewed (count based).
+	measure 'Renewal Rate' = DIVIDE ( CALCULATE ( COUNTROWS ( fct_renewals ), fct_renewals[outcome] = "renewed" ), COUNTROWS ( fct_renewals ) )
+		formatString: 0.0%
+		displayFolder: Renewals
+		lineageTag: ced70fcc-803b-5459-9e8e-62b681109d91
+
+	/// ARR on the lines due in the period, at their last day.
+	measure 'ARR Up for Renewal' = SUM ( fct_renewals[arr_expiring_usd] )
+		formatString: \$#,0
+		displayFolder: Renewals
+		lineageTag: fe3a420e-3e53-5d68-b5cd-5b4ecda1d7a7
+
+	/// Expiring ARR on lines that did not renew.
+	measure 'Churned ARR at Renewal' = CALCULATE ( SUM ( fct_renewals[arr_expiring_usd] ), fct_renewals[outcome] = "churned" )
+		formatString: \$#,0
+		displayFolder: Renewals
+		lineageTag: c017573f-a50d-5821-a6f8-8ccfae823787
+
+	partition fct_arr_monthly = entity
+		mode: directLake
+		source
+			entityName: fct_arr_monthly
+			schemaName: gold
+			expressionSource: DatabaseQuery

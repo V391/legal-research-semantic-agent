@@ -1,0 +1,34 @@
+version: 2
+
+# Bronze: raw feeds exactly as the source systems delivered them, append-only, one `_loaded_at` per row.
+sources:
+  - name: bronze
+    schema: bronze
+    description: Untouched landed feeds. Duplicates, restatements and minor units are fixed in silver, never here.
+    tables:
+      - name: cpq_contract_events
+        description: CPQ webhook stream. Delivered at least once (same event_id can arrive twice). Money in minor units. TCV covers the whole term.
+        columns:
+          - name: event_id
+            data_tests: [not_null]
+          - name: event_type
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: [contract_created, amendment]
+      - name: crm_account_changes
+        description: CRM change data capture for accounts. A full row per change; some changes are re-sent and loads arrive out of order.
+        columns:
+          - name: account_id
+            data_tests: [not_null]
+          - name: account_type
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: [customer, internal]
+      - name: crm_practice_focus
+        description: Practice focus survey, percent of the firm's work per practice area. A firm can be resurveyed; the latest survey wins.
+      - name: product_usage_weekly
+        description: Weekly usage extract per account and product (week starts Monday). Some weeks first land partial and are restated a week later.
+      - name: fx_rates_monthly
+        description: Month start FX, local currency units per USD.

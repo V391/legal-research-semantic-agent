@@ -1,0 +1,7 @@
+product_id,product_name,product_line,is_core,list_price_usd
+P01,Research Core,Research,true,1800
+P02,Research Plus,Research,true,2600
+P03,Litigation Analytics,Analytics,false,1500
+P04,Docket Intelligence,Analytics,false,900
+P05,Practical Guidance,Guidance,false,1200
+P06,AI Assistant,AI,false,1400

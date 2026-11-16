@@ -1,0 +1,13 @@
+version: 2
+
+# The simulator's answer key. Read by the assert_*_matches_truth tests and by eval/, never by models.
+sources:
+  - name: truth
+    schema: truth
+    tables:
+      - name: arr_monthly
+      - name: renewals
+      - name: usage_weekly
+      - name: firm_versions
+      - name: practice_weights
+      - name: usage_anomalies

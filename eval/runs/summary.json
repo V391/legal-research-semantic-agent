@@ -1,0 +1,26 @@
+{
+ "governed": {
+  "answers": 120,
+  "correct": 120,
+  "accuracy": 1.0,
+  "questions_right_every_run": 40,
+  "questions_right_some_runs_only": 0,
+  "questions": 40,
+  "runs": 3,
+  "executed_but_wrong": 0,
+  "failed_to_run": 0,
+  "needed_retry": 6
+ },
+ "baseline": {
+  "answers": 120,
+  "correct": 112,
+  "accuracy": 0.933,
+  "questions_right_every_run": 36,
+  "questions_right_some_runs_only": 3,
+  "questions": 40,
+  "runs": 3,
+  "executed_but_wrong": 8,
+  "failed_to_run": 0,
+  "needed_retry": 6
+ }
+}

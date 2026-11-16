@@ -1,0 +1,22 @@
+legal_research:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: warehouse/dev.duckdb
+      threads: 4
+    defect:
+      type: duckdb
+      path: warehouse/defect.duckdb
+      threads: 4
+    # Same models run on Snowflake: the SQL sticks to functions both engines share.
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      authenticator: externalbrowser
+      role: TRANSFORMER
+      warehouse: TRANSFORMING
+      database: LEGAL_ANALYTICS
+      schema: DBT
+      threads: 8

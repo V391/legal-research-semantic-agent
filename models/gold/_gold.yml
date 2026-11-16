@@ -1,0 +1,212 @@
+version: 2
+
+# Gold: the star schema the semantic model, Power BI and the agent read. Every model has an enforced
+# contract (names and types), every column a description (checks/check_docs.py fails CI otherwise).
+
+models:
+  - name: dim_date
+    description: Calendar, one row per day. Weeks start Monday and belong to the month of their Monday.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: date_key, data_type: integer, description: "yyyymmdd surrogate key.", data_tests: [unique, not_null]}
+      - {name: date_day, data_type: date, description: Calendar day.}
+      - {name: week_start, data_type: date, description: Monday of the ISO week containing the day.}
+      - {name: month_start, data_type: date, description: First day of the month.}
+      - {name: month_end, data_type: date, description: Last day of the month. Snapshot facts are keyed on it.}
+      - {name: is_month_end, data_type: boolean, description: True on the last day of a month.}
+      - {name: year_quarter, data_type: varchar, description: "Calendar quarter label, e.g. 2025-Q3."}
+      - {name: quarter_of_year, data_type: bigint, description: Quarter number 1 to 4.}
+      - {name: calendar_year, data_type: bigint, description: Calendar year.}
+
+  - name: dim_firm
+    description: Customer firm, Type 2. Facts carry the firm_sk in force at their own date, so slicing by segment is as-was by default.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: firm_sk, data_type: varchar, description: Surrogate key of the firm version., data_tests: [unique, not_null]}
+      - {name: account_id, data_type: varchar, description: Durable CRM account id. Same across versions., data_tests: [not_null]}
+      - {name: account_name, data_type: varchar, description: Firm name.}
+      - name: segment
+        data_type: varchar
+        description: Commercial segment while this version was valid. Firms move up segments as they grow.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [Global Law Firm, Large Law, Mid-size Law, Small Law, Corporate Legal, Government]
+      - {name: country, data_type: varchar, description: Billing country.}
+      - name: region
+        data_type: varchar
+        description: Sales region derived from country.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Americas, EMEA, APAC]
+      - {name: account_owner, data_type: varchar, description: Account executive while this version was valid.}
+      - {name: valid_from_date, data_type: date, description: Version start, inclusive.}
+      - {name: valid_to_date, data_type: date, description: "Version end, exclusive. 9999-12-31 on the current version."}
+      - {name: is_current, data_type: boolean, description: True on the latest version of each firm.}
+    data_tests:
+      - no_overlapping_intervals:
+          arguments: {partition_by: account_id, from_col: valid_from_date, to_col: valid_to_date}
+      - exactly_one_current:
+          arguments: {key: account_id}
+
+  - name: dim_product
+    description: Products with their product line (hierarchy product_line > product).
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: product_id, data_type: varchar, description: Product id., data_tests: [unique, not_null]}
+      - {name: product_name, data_type: varchar, description: Product name.}
+      - {name: product_line, data_type: varchar, description: "Research, Analytics, Guidance or AI."}
+      - {name: is_core, data_type: boolean, description: True for the research subscriptions every customer holds one of.}
+      - {name: list_price_usd, data_type: "decimal(18,2)", description: List price per seat per year in USD before discounts.}
+
+  - name: dim_practice_area
+    description: Practice areas, plus PA00 Unspecified.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: practice_area_id, data_type: varchar, description: Practice area id., data_tests: [unique, not_null]}
+      - {name: practice_area, data_type: varchar, description: Practice area name.}
+
+  - name: bridge_firm_practice_area
+    description: >
+      Many to many bridge between firms and practice areas. Allocation weights sum to 1 per firm.
+      Any measure sliced by practice area must be multiplied by allocation_weight, or it double counts.
+    config: {contract: {enforced: true}}
+    columns:
+      - name: account_id
+        data_type: varchar
+        description: Firm (durable key).
+        data_tests:
+          - not_null
+          - covers_every_key:
+              arguments: {to: ref('dim_firm'), field: account_id}
+      - name: practice_area_id
+        data_type: varchar
+        description: Practice area.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_practice_area'), field: practice_area_id}
+      - {name: allocation_weight, data_type: "decimal(9,4)", description: Share of the firm attributed to the practice area.}
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [account_id, practice_area_id]}
+      - weights_sum_to_one:
+          arguments: {key: account_id, weight: allocation_weight}
+
+  - name: fct_arr_monthly
+    description: >
+      Periodic snapshot of recurring revenue, one row per firm x product x month end. ARR is semi-additive:
+      sum across firms and products, never across months (take one month end).
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: month_end_key, data_type: integer, description: "yyyymmdd of the month end (joins dim_date.date_key)."}
+      - {name: month_end, data_type: date, description: Snapshot date., data_tests: [not_null]}
+      - name: firm_sk
+        data_type: varchar
+        description: Firm version in force on the snapshot date.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_firm'), field: firm_sk}
+      - {name: account_id, data_type: varchar, description: Firm durable key.}
+      - name: product_id
+        data_type: varchar
+        description: Product.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_product'), field: product_id}
+      - name: seats
+        data_type: integer
+        description: Licensed seats on the snapshot date.
+        data_tests:
+          - in_range: {arguments: {min_value: 1}}
+      - name: arr_usd
+        data_type: "decimal(18,2)"
+        description: Annual recurring revenue in USD at the contract start month FX rate.
+        data_tests:
+          - in_range: {arguments: {min_value: 0.01}}
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [month_end, account_id, product_id]}
+      # price sanity: list prices run $900 to $2,600 per seat; anything outside $100 to $10,000 is a unit or FX error
+      - expression_true:
+          arguments: {expression: "arr_usd / seats between 100 and 10000"}
+
+  - name: fct_usage_weekly
+    description: Weekly product usage, one row per firm x product x week. Additive except active_users (sum within a week only).
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: week_start, data_type: date, description: Monday of the usage week., data_tests: [not_null]}
+      - name: firm_sk
+        data_type: varchar
+        description: Firm version in force at week start.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_firm'), field: firm_sk}
+      - {name: account_id, data_type: varchar, description: Firm durable key.}
+      - {name: product_id, data_type: varchar, description: Product.}
+      - {name: licensed_seats, data_type: bigint, description: Seats licensed that week.}
+      - name: active_users
+        data_type: bigint
+        description: Distinct users active that week.
+        data_tests:
+          - in_range: {arguments: {min_value: 0}}
+      - {name: searches, data_type: bigint, description: Searches run.}
+      - {name: documents_viewed, data_tests: [not_null], data_type: bigint, description: Documents opened.}
+      - {name: ai_prompts, data_type: bigint, description: Prompts sent to AI Assistant.}
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [week_start, account_id, product_id]}
+      - expression_true:
+          arguments: {expression: "active_users <= licensed_seats"}
+
+  - name: fct_renewals
+    description: One row per contract line that reached its renewal date, with the outcome.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: contract_id, data_type: varchar, description: Expiring contract line., data_tests: [unique, not_null]}
+      - {name: firm_sk, data_type: varchar, description: Firm version in force on the renewal date.}
+      - {name: account_id, data_type: varchar, description: Firm durable key.}
+      - {name: product_id, data_type: varchar, description: Product.}
+      - {name: renewal_date, data_type: date, description: End of the expiring term (exclusive), the day the renewal takes effect.}
+      - {name: term_months, data_type: bigint, description: Length of the expiring term.}
+      - {name: seats_expiring, data_type: integer, description: Seats at the end of the expiring term.}
+      - {name: arr_expiring_usd, data_type: "decimal(18,2)", description: ARR of the expiring line on its last day.}
+      - name: outcome
+        data_type: varchar
+        description: renewed or churned.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [renewed, churned]}
+      - {name: successor_contract_id, data_type: varchar, description: The renewal line. Null if churned.}
+      - {name: arr_renewed_usd, data_type: "decimal(18,2)", description: ARR of the renewal line at its start. 0 if churned.}
+
+  - name: ml_renewal_features
+    description: Point in time features for the renewal risk model, frozen feature_lead_days before each renewal.
+    columns:
+      - {name: contract_id, description: Expiring contract line., data_tests: [unique, not_null]}
+      - {name: account_id, description: Firm.}
+      - {name: renewal_date, description: Renewal date.}
+      - {name: feature_cutoff, description: Latest moment any feature may look at.}
+      - {name: product_line, description: Product line of the expiring line.}
+      - {name: is_addon, description: True if the line is not the core research subscription.}
+      - {name: segment, description: Segment at the cutoff.}
+      - {name: region, description: Region.}
+      - {name: term_months, description: Length of the expiring term.}
+      - {name: arr_expiring_usd, description: ARR of the expiring line.}
+      - {name: tenure_months, description: Months since the firm's first contract, at the cutoff.}
+      - {name: has_ai_assistant, description: 1 if the firm held AI Assistant at the last month end before the cutoff.}
+      - {name: products_held, description: Distinct products held at that month end.}
+      - {name: firm_arr_usd, description: Firm ARR at that month end.}
+      - {name: product_utilization, description: Active users over licensed seats for this product, last feature window.}
+      - {name: product_utilization_trend, description: Recent half minus earlier half of the window.}
+      - {name: firm_utilization, description: Same as product_utilization across all the firm's products.}
+      - {name: firm_utilization_trend, description: Recent half minus earlier half, all products.}
+      - {name: firm_actions_per_seat_week, description: Searches plus documents per licensed seat per week.}
+      - {name: firm_ai_prompts_per_seat_week, description: AI prompts per licensed seat per week.}
+      - name: churned
+        description: Label. 1 if the line did not renew.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [0, 1], quote: false}
